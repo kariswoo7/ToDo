@@ -28,7 +28,7 @@ app.include_router(task.router)
 
 # 기능 설명: done 기능들을 앱에 연결한다
 # 예: /tasks 주소에서 할 일 목록을 보여주거나 추가하는 기능
-app.include_router(task.router)
+app.include_router(done.router)
 
 # 보충 설명:
 # include_router는 말 그대로 기능(router)을 앱(app)에 포함시킨다는 뜻이다.
