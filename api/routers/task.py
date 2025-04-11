@@ -36,7 +36,7 @@ async def list_tasks():
 
 @router.post("/tasks", response_model=task_Schema.TaskCreateResponse)
 # task_body: 클라이언트가 보낸 할 일 데이터(title만 있음)
-# TaskCreateResponse: 저장된 결과로 id를 포함해 dmdekq
+# TaskCreateResponse: 저장된 결과로 id를 포함해 응답
 async def create_task(task_body: task_Schema.TaskCreate):
     return task_Schema.TaskCreateResponse(id=1, **task_body.dict())
     # DB가 없으므로 임시로 id=1을 부여하고, 받은 데이터를 그대로 반환
@@ -46,9 +46,9 @@ async def create_task(task_body: task_Schema.TaskCreate):
 # 할 일 수정 기능(PUT 방식)
 # 예: /tasks/3 -> 번호가 3인 할 일의 내용을 바꾼다.
 # -----------------------------------------------------------------
-@router.put("/tasks/{task_id}")
-async def update_task():
-    pass  # 추후 구현 예정
+@router.put("/tasks/{task_id}", response_model=task_Schema.TaskCreateResponse)
+async def update_task(task_id: int, task_body: task_Schema.TaskCreate):
+    return task_Schema.TaskCreateResponse(id=task_id, **task_body.model_dump())
 
 
 # -----------------------------------------------------------------
@@ -56,5 +56,5 @@ async def update_task():
 # 예: /tasks/3 -> 번호가 3인 할 일을 삭제한다.
 # -----------------------------------------------------------------
 @router.delete("/tasks/{task_id}")
-async def delete_task():
-    pass  # 추후 구현 예정
+async def delete_task(task_id: int):
+    return
