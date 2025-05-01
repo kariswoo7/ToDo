@@ -178,4 +178,4 @@ async def get_tasks_with_done(db: AsyncSession) -> list[tuple[int, str, bool]]:
     )
 
     return result.all()
-    # * 쿼리 결과를 리스트로 반환함
+    # * 쿼리 결과를 리스트로 반환함.
