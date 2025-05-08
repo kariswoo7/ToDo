@@ -50,6 +50,7 @@ class Task(Base):
 # ------------------------------------------------------------------
 class Done(Base):
     __tablename__ = "dones"  # 이 클래스는 'dones' 테이블과 연결됨
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, ForeignKey("tasks.id"), primary_key=True)
     # -> DB 컬럼: dones.id (외래키:tasks.id)
