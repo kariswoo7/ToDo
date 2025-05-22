@@ -12,7 +12,7 @@ import pytest
 import pytest_asyncio
 
 # httpx: 코드로 HTTP 요청을 보낼 수 있는 클라이언트 (FastAPI와 잘 호환됨)
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 
 # SQLAlchemy 비동기 전용 모듈
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -24,6 +24,10 @@ from api.main import app
 
 # 타입 힌트를 위한 모듈
 from typing import AsyncGenerator
+
+# HTTP 상태 코드를 직관적인 이름으로 사용하기 위해 불러옴
+# 예: status.HTTP_200_OK, status.HTTP_404_NOT_FOUND 등
+import starlette.status as status
 
 # -----------------------------------------------------------
 # ASYNC_DB_URL: 테스트에 사용할 임시 SQLite 데이터베이스 주소
@@ -46,18 +50,15 @@ async def async_client() -> AsyncGenerator[AsyncClient, None]:
     # -----------------------------------------------------------
     async_engine = create_async_engine(ASYNC_DB_URL, echo=True)
     async_session = sessionmaker(
-        autocommit=False,  # 명시적으로 commit 해야 저장됨
-        autoflush=False,  # flush 타이밍도 직접 제어
-        bind=async_engine,  # 위에서 만든 비동기 DB 엔진. 사용
-        class_=AsyncSession,  # 세션은 비동기 방식으로 사용
+        autocommit=False, autoflush=False, bind=async_engine, class_=AsyncSession
     )
 
     # -----------------------------------------------------------
     # 2. 테스트용 DB 초기화 (테이블 전체 삭제 후 재생성)
     # -----------------------------------------------------------
     async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)  # 기존 테이블 제거
-        await conn.run_sync(Base.metadata.create_all)  # 필요한 테이블 생성
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
 
     # -----------------------------------------------------------
     # 3. get_db() 함수를 테스트용 DB와 연결되도록 override
@@ -75,7 +76,8 @@ async def async_client() -> AsyncGenerator[AsyncClient, None]:
     # - FastAPI 서버를 실제로 띄우지 않아도 요청을 보낼 수 있으ㅡㅁ
     # - base_url은 내부적으로만 사용되는 테스트 주소
     # -----------------------------------------------------------
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    transport = ASGITransport(app=app, raise_app_exceptions=True)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
         # 테스트 함수에서 이 client를 사용하면, 실제 서버 없이도 앱에 요청 가능
 
@@ -104,7 +106,7 @@ async def test_create_and_read(async_client):
     # - 방금 추가한 할 일이 목록에 포함되어 있는지 확인
     # -----------------------------------------------------------------
     response = await async_client.get("/tasks")
-    assert response.status_code == status.HTTP_200_OK
+    assert response.status_code == status.HTTP_200_OK  # 200 OK 확인인
 
     response_obj = response.json()
     assert len(response_obj) == 1  # 할 일 개수가 1개인지 확인
@@ -145,7 +147,9 @@ async def test_done_flag(async_client):
     # -/tasks/1/done 주소로 요청을 보내면 완료 상태가 해제됨 (False로 변경됨)
     # ---------------------------------------------------------------
     response = await async_client.delete("/tasks/1/done")
-    assert response.status_code == status.HTTP_200_OK
+    assert (
+        response.status_code == status.HTTP_200_OK
+    )  # 정상적으로 완료 해제되었는지 확인
 
     # ---------------------------------------------------------------
     # [5] 이미 완료 해제된 작업을 다시 해제하려고 시도
@@ -153,4 +157,32 @@ async def test_done_flag(async_client):
     # - 따라서 404 Not Found 응답을 보내는 것이 올바름
     # ---------------------------------------------------------------
     response = await async_client.delete("/tasks/1/done")
-    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert (
+        response.status_code == status.HTTP_404_NOT_FOUND
+    )  # 존재하지 않는 상태를 다시 요청 -> 실패 응답 확인
+
+
+# --------------------------------------------------------------------------
+# [테스트 함수] 마감일(due_date)이 포함된 할 일 생성 테스트
+# - 사용자가 title과 함께 due_date를 보낼 수 있는지 확인
+# - 예: {"title": "테스트 작업", "due_date": "2024-12-01"} <- 유효하지 않은 날짜짜
+# -------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_due_date(async_client):
+    # ------------------------------------------------------------------
+    # 1. POST 요청 전송
+    # - /tasks 주소에 JSON 데이터로 할 일을 하나 추가함
+    # - title은 정상적으로 입력하고,
+    #   due_date에는 존재하지 않는 날짜(12월 32일)를 넣어 테스트합니다.
+    response = await async_client.post(
+        "/tasks",
+        json={"title": "테스트 작업", "due_date": "2024-12-32"},  # <- 마감일 포함
+    )
+
+    # --------------------------------------------------------------------
+    # 2. 응답 상태 코드 확인
+    # - 날짜 형식이 잘못되었으므로 422 Unprocessable Entity를 반환해야 합니다.
+    # - Pydantic이 유효하지 않은 날짜를 감지하고 요청을 거부하게 됩니다.내ㅕ
+    # -------------------------------------------------------------
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
