@@ -3,13 +3,21 @@
 # 이 구조는 서버에서 주고받을 할 일 데이터의 모양을 정하는 것이다.
 # -------------------------------------------------------------------
 
-from pydantic import BaseModel, Field  # 데이터를 깔끔하게 다루기 위한 도구를 불러온다.
+from pydantic import (
+    BaseModel,
+    Field,
+    ConfigDict,
+)  # 데이터를 깔끔하게 다루기 위한 도구를 불러온다.
 
-# pydantic: 우리가 정의한 자료가 숫자인지 글자인지 자동으로 확인해주는 도구다.
+# - BaseModel : 모든 데이터 구조의 기본이 되는 클래스
+# - Field: 각 항목에 기본값, 예시, 설명 등을 붙일 수 있게 해준다
+# - ConfingDict: Pydantic v2부터 모델 설정(예":from_attributes)을 지정할 떄 사용
 
 # -----------------------------------------------------------------
-# 공통 속성 정의 (제목만 포함)
-# TaskCreate, TaskCreateResponse, Task가 공통으로 사용하느 부분을 따로 묶은 클래스
+# [1] 공통 속성 클래스 : TaskBase
+# - title(할 일 제목)만 포함되어 있음
+# - 할 일 관련 데이터 구조들이 공통으로 사용하는 부분을 따로 묶은 클래스
+# - TaskCreate, TaskCreateResponse, Task가 이 클래스를 상속해서 사용한다
 # -----------------------------------------------------------------
 
 
@@ -18,33 +26,40 @@ class TaskBase(BaseModel):
         default=None,  # 제목이 없을 수도 있으니 기본값은 None 으로 설정
         examples=["세탁소에 맡긴 것을 찾으러 가기"],  # 예시 제목을 보여준다.
     )
-    # title: 할 일의 제목 (str 또는 None)
+    # title: 할 일의 제목
+    # * str | None : 문자열이거나 값이 없을 수도 있음 (입력을 안 해도 에러는 나지 않음)
 
 
 # -----------------------------------------------------------------
-# 새로운 할 일을 생성할 때 사용하는 구조
-# 클라이언트가 서버로 보낼 데이터 (title만 포함)
+# [2] 할 일 생성 요청용 모델 : TaskCreate
+# - 사용자가 할 일을 새로 만들 때 사용하는 요청 구조
+# - title만 필요하므로 TaskBase를 그대로 상속해서 사용함
 # -----------------------------------------------------------------
 
 
 class TaskCreate(TaskBase):
-    pass  # TaskBase에 정의된 내용을 그대로 사용함
+    pass
+    # * 상속만 하고 필드는 추가하지 않음 (title만 있으면 충분함)
+    # * title은 TaskVase에서 정의도니 내용을 그대로 사용함
 
 
 # -----------------------------------------------------------------
-# 새 할 일을 생성한 후, 서버가 클라이언트에 응답할 때 사용하는 구조
-# id 정보까지 함께 전달한다.
+# [3] 할 일 생성 응답용 모델: TaskCreateResponse
+# - 서버가 클라이언트에게 응답할 때 사용하는 구조
+# - 새로 만들어진 할 일의 번호(id)를 포함함
 # -----------------------------------------------------------------
 class TaskCreateResponse(TaskCreate):
     id: int  # 새로 만들어진 할 일의 고유 번호
 
-    class Config:
-        orm_mode = True  # ORM 모델(SQLAlchemy 등)을 사용할 수 있도록 설정
+    model_config = ConfigDict(from_attributes=True)
+    # * SQLAlchemy 같은 ORM 객체를 이 모델로 자동 변환할 수 있게 설정
+    # * 기존 orm_mode = True 설정이 Pydantic v2에서는 from_attributes로 대체됨
 
 
 # -----------------------------------------------------------------
-# 할 일을 조회하거나 응답할 때 사용하는 구조
-# id, done 정보가 포함되며, 전체 할 일 목록 조회 등에 사용됨
+# [4] 할 일 전체 정보를 표현하는 모델: Task
+# - 목록 조회나 상세 보기 등에 사용됨
+# - id(번호), title(제목), done(완료 여부) 포함
 # -----------------------------------------------------------------
 class Task(TaskBase):  # '할 일'을 표현할 수 있는 Task라는 틀을 만든다.
 
@@ -52,9 +67,10 @@ class Task(TaskBase):  # '할 일'을 표현할 수 있는 Task라는 틀을 만
 
     done: bool = Field(
         default=False,  # 처음에는 완료되지 않음(False)'으로 시작한다.
-        description="이 할 일이 완료되었는지 여부부",  # True면 완료, False면 미완료를 나타냄
+        description="이 할 일이 완료되었는지 여부",  # True면 완료, False면 미완료를 나타냄
     )
     # done: 이 할 일이 끝났는지를 표시하는 값 (True 또는 False만 가능함)
 
-    class Config:
-        orm_mode = True  # ORM 모델(SQLAlchemy 등)을 사용할 수 있도록 설정
+    model_config = ConfigDict(from_attributes=True)
+    # * 이 설정을 해두면 DB에서 가져온 ORM 객체를 그대로 이 모델에 쓸 수 있다
+    # * Pydantic v2에서는 class Config + orm_mode 대신 이 방식을 사용함

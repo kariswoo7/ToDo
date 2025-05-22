@@ -37,12 +37,12 @@ Python = "^3.12"                                         # Python  버전은 3.1
 fastapi = "^0.115.12"                                    # FastAPI는 웹 API를 만들기 위한 프레임 워크이다.
 uvicorn = { extras = ["standard"], version = "^0.34.0" }
 # * uvicornems FastAPI 앱을 실행하는 서버 도구이다. standard는 필요한 기능을 포함한 옵션이다.
-# - extras 옵션에 "standard"를 넣으면 보안, 재시작 등의 기능도 함께 설치됨
+# - extras 옵션은 로그, 자동 재시작 같은 기능을 포함함
 sqlalchemy = "^2.0.40"
+# SQLAlchemy: 파이썬 코드로 데이터 베이스를 다루는 도구(ORM)
 
 asyncpg = "^0.30.0"
 # * asyncpg: PostgreSQL과 비동기로 연결할 수있게 해주는 드라이버
-# = FastAPI에서 데이터베이스를 빠르게 사용하기 위해 필요함
 
 psycopg2_binary = "^2.9.10"
 # * psycopg2-binary: PostgreSQL에 동기 방식으로 연결할 수 있는 드라이버

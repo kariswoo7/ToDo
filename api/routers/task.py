@@ -62,7 +62,7 @@ async def list_tasks(db: AsyncSession = Depends(get_db)):
 
 
 # -----------------------------------------------------------------
-# [2] 할 일 추가가 (POST 방식)
+# [2] 할 일 추가 (POST 방식)
 # - 사용자가 할 일 하나를 JSON으로 보내면 서버가 저장해줍니다.
 # - 예: {"title": "책 읽기"}
 # - 이 함수는 POST /tasks 주소로 요청이 왔을 때 실행됩니다.
@@ -81,7 +81,8 @@ async def list_tasks(db: AsyncSession = Depends(get_db)):
 # - db: 데이터베이스와 연결된 세션입니다.
 #       Depends(get_db)를 통해 FastAPI가 자동으로 db 연결을 준비해줍니다.
 async def create_task(
-    task_body: task_schema.TaskCreate, db: AsyncSession = Depends(get_db)
+    task_body: task_schema.TaskCreate,  # 요청 데이터 (제목 하나만 포함됨)
+    db: AsyncSession = Depends(get_db),  # DB 연결 세션(FastAPI가 자동으로 준비)
 ):
     # ------------------------------------------------------------------
     # 실제로 할 일을 DB에 저장하는 부분입니다.
@@ -116,11 +117,9 @@ async def create_task(
 # - task_id: URL 경로에 포함된 숫자 ( 수정 대상 할 일 번호)
 # - task_body: 수정할 내용을 담은 요청 본문 (title)
 # - db: FastAPI가 get_db() 함수를 통해 자동으로 주입하는 DB 세션 객체체
-async def update_task(
-    task_id: int, task_body: task_schema.TaskCreate, db: AsyncSession = Depends(get_db)
-):
+async def update_task(task_id: int, db: AsyncSession = Depends(get_db)):
     # * DB에서 해당 task_id에 맞는 Task를 조회함
-    task = await task_crud.get_task(db, task_id)
+    task = await task_crud.get_task(db, task_id=task_id)
 
     # * if: 조건문 -> 특정 조건이 참(True)이면 아래 코드를 실행함
     if task is None:
